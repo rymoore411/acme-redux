@@ -66,6 +66,7 @@ div#content{
             break;
           case 'CREATE_PRODUCT':
             state = [...state, action.product];
+            break;
           case 'DESTROY_PRODUCT':
             state = state.filter(product => action.product.id !== product.id);
         }
@@ -167,13 +168,10 @@ div#content{
             name: ''
           };
           this.onChange = this.onChange.bind(this);
-          this.create = this.create.bind(this);
         }
         async create(product, history){
           event.preventDefault();
           const response = await axios.post('/api/products', {name: product});
-          // this.setState({name: product});
-          // console.log(response.data);
           store.dispatch({ type: 'CREATE_PRODUCT', product: response.data});
           history.push('/products');
         }

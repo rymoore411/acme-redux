@@ -23,7 +23,6 @@ app.get('/api/products', async(req, res, next)=> {
 });
 
 app.post('/api/products', async(req, res, next)=>{
-  console.log(req.body);
   try{
     const product = await Product.create(req.body);
     res.send(product);
