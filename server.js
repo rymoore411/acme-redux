@@ -23,10 +23,9 @@ app.get('/api/products', async(req, res, next)=> {
 });
 
 app.post('/api/products', async(req, res, next)=>{
-  console.log(await req.body);
   try{
-    await Product.create(req.body);
-    // res.redirect('/#/products');
+    const product = await Product.create(req.body);
+    res.send(product);
   }
   catch(ex){
     next(ex);

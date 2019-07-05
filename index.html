@@ -134,6 +134,7 @@ div#content{
           this.create = this.create.bind(this);
         }
         async create(product, history){
+          event.preventDefault();
           const response = await axios.post('/api/products', product)
           const products = [...this.state.products, response.data];
           this.setState({ products });
