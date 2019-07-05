@@ -48,6 +48,7 @@ div#content{
 
 </style>
     <script src='https://cdnjs.cloudflare.com/ajax/libs/axios/0.18.0/axios.js'></script>
+    <script src='https://cdnjs.cloudflare.com/ajax/libs/redux/4.0.1/redux.js'></script>
     <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
     <script src="https://unpkg.com/react@16/umd/react.development.js" crossorigin></script>
     <script src="https://unpkg.com/react-dom@16/umd/react-dom.development.js" crossorigin></script>
@@ -58,14 +59,47 @@ div#content{
     <script type='text/babel'>
       const { HashRouter, Route, Link } = ReactRouterDOM;
 
-      const Home = ()=> <h2>Home</h2>;
+      const store = Redux.createStore((state = [], action)=>{
+        switch(action.type){
+          case 'SET_PRODUCTS':
+            state = action.products;
+            break;
+          case 'DESTROY_PRODUCT':
+            state = state.filter(product => action.product.id !== product.id);
+        }
+        return state;
 
-      const Nav = ({ pathname, products })=> {
+      });
+
+      const start =  async()=> {
+        const response = await axios.get('/api/products');
+        store.dispatch({type: 'SET_PRODUCTS', products: response.data});
+      };
+
+      start();
+
+      class Nav extends React.Component {
+        constructor(){
+          super();
+          this.state = {
+            products: store.getState()
+          }
+        }
+        componentDidMount(){
+          store.subscribe(()=> {
+            this.setState({products: store.getState()});
+          })
+        }
+
+        render(){
+        const { products } = this.state;
+        const {pathname } = this.props.location;
         const links = [
           { text: 'Home', to: '/'},
           { text: `Products (${ products.length})`, to: '/products' },
           { text: 'Create A Product', to: '/products/create' },
         ];
+
         return (
           <div id='nav'>
             {
@@ -73,8 +107,34 @@ div#content{
             }
           </div>
        );
+        }
       }
-      const Products = ({ products, destroy })=> {
+
+      class Products extends React.Component {
+        constructor(){
+          super();
+          this.state = {
+            products: store.getState()
+          }
+        }
+        async destroy(product){
+          await axios.delete(`/api/products/${product.id}`)
+          store.dispatch({
+            type: 'DESTROY_PRODUCT',
+            product
+          })
+        }
+
+        componentDidMount(){
+          store.subscribe(()=> {
+            this.setState({products: store.getState()});
+          })
+        }
+
+        render(){
+        const { products } = this.state;
+        const { destroy } = this;
+
         return (
           <div>
             <h2>Products</h2>
@@ -89,8 +149,50 @@ div#content{
               }
             </ul>
           </div>
-        );
-      };
+          );
+        }
+      }
+
+      // const Products = ({ products, destroy })=> {
+      //   return (
+      //     <div>
+      //       <h2>Products</h2>
+      //       <ul id='products'>
+      //         {
+      //           products.map( product => (
+      //             <li key={ product.id }>
+      //               <div>{ product.name }</div>
+      //               <button onClick={ ()=> destroy(product)}>Destroy</button>
+      //             </li>
+      //           ))
+      //         }
+      //       </ul>
+      //     </div>
+      //   );
+      // };
+
+      const ProductCreate = ()=>{
+
+        const createProduct = async()=> {
+          event.preventDefault();
+          const response = await axios.post('/api/products')
+          store.dispatch({ type: 'CREATE_PRODUCT', product: response.data});
+          // this.setState({ products });
+          // history.push('/products');
+        }
+
+        return (
+            <div>
+              <h2>Create A Product</h2>
+              <form onSubmit={ onSubmit }>
+                <input name='name' onChange={ onChange } value={ name } placeholder='enter a new product'/>
+                <button disabled={!name}>Save</button>
+              </form>
+            </div>
+
+          );
+
+      }
 
       class ProductCreate extends React.Component{
         constructor(){
@@ -124,48 +226,61 @@ div#content{
         }
       }
 
-      class App extends React.Component{
-        constructor(){
-          super();
-          this.state = {
-            products: []
-          };
-          this.destroy = this.destroy.bind(this);
-          this.create = this.create.bind(this);
-        }
-        async create(product, history){
-          event.preventDefault();
-          const response = await axios.post('/api/products', product)
-          const products = [...this.state.products, response.data];
-          this.setState({ products });
-          history.push('/products');
-        }
-        async destroy(product){
-          await axios.delete(`/api/products/${product.id}`)
-          const products = this.state.products.filter( _product => _product.id !== product.id);
-          this.setState({ products });
+      // class App extends React.Component{
+      //   constructor(){
+      //     super();
+      //     this.state = {
+      //       products: []
+      //     };
+      //     this.destroy = this.destroy.bind(this);
+      //     this.create = this.create.bind(this);
+      //   }
+      //   async create(product, history){
+      //     event.preventDefault();
+      //     const response = await axios.post('/api/products', product)
+      //     const products = [...this.state.products, response.data];
+      //     this.setState({ products });
+      //     history.push('/products');
+      //   }
+      //   async destroy(product){
+      //     await axios.delete(`/api/products/${product.id}`)
+      //     const products = this.state.products.filter( _product => _product.id !== product.id);
+      //     this.setState({ products });
 
-        }
-        async componentDidMount(){
-          const response = await axios.get('/api/products');
-          this.setState( { products: response.data });
+      //   }
+      //   async componentDidMount(){
+      //     const response = await axios.get('/api/products');
+      //     this.setState( { products: response.data });
 
-        }
-        render(){
-          const { products } = this.state;
-          const { destroy, create } = this;
-          return (
-            <HashRouter>
-              <h1>Acme Products</h1>
-              <Route render={({ location })=> <Nav pathname={ location.pathname} products={ products } /> } />
-              <div id='content'>
-                <Route exact path='/' component={ Home } />
-                <Route path='/products' exact render={ ()=> <Products destroy={ destroy } products={ products } /> } />
-                <Route path='/products/create' render={ ({ history })=> <ProductCreate create={ create } history={ history } /> } />
-              </div>
-            </HashRouter>
-         );
-        }
+      //   }
+      //   render(){
+      //     const { products } = this.state;
+      //     const { destroy, create } = this;
+      //     return (
+      //       <HashRouter>
+      //         <h1>Acme Products</h1>
+      //         <Route render={({ location })=> <Nav pathname={ location.pathname} products={ products } /> } />
+      //         <div id='content'>
+      //           <Route exact path='/' component={ Home } />
+      //           <Route path='/products' exact render={ ()=> <Products destroy={ destroy } products={ products } /> } />
+      //           <Route path='/products/create' render={ ({ history })=> <ProductCreate create={ create } history={ history } /> } />
+      //         </div>
+      //       </HashRouter>
+      //    );
+      //   }
+      // }
+
+      const Home = ()=> <h2>Home</h2>;
+
+      const App = ()=> {
+        return (
+          <HashRouter>
+            <Route component = { Nav } />
+            <Route path = '/' exact component = { Home } />
+            <Route path = '/products' exact component = {Products} />
+            <Route path = '/products/create' component = {ProductCreate} />
+          </HashRouter>
+        )
       }
       const root = document.querySelector('#root');
       ReactDOM.render(<App />, root);
